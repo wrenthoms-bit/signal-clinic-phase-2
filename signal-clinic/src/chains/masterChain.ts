@@ -1,23 +1,22 @@
 import { ChainManager } from '../core/ChainManager';
-import { MusicRebalance } from '../modules/master/MusicRebalance';
 import { SpectralRepair } from '../modules/master/SpectralRepair';
 import { AzimuthPhase } from '../modules/master/AzimuthPhase';
 import { LoudnessControl } from '../modules/master/LoudnessControl';
 
 /**
- * Music Rebalance (spec §6.1) is now wired in as Phase 2's first ML-backed
- * module — bypassed by default (see below), since it's a ~170MB lazy-load
- * the user should opt into, not something that silently downloads a model
- * the first time anyone renders a master. Spectral Repair's own documented
- * fallback (spec §6.1) is to work directly on the stereo mix when Rebalance
- * is bypassed, so the chain is fully functional either way.
+ * Music Rebalance (spec §6.1) is temporarily unwired — see
+ * docs/phase2-ml-architecture.md and the README's Phase 2 section. Its
+ * code (src/modules/master/MusicRebalance.ts) is real and stays in the
+ * repo, but `demucs-web` — the package it depends on — couldn't be
+ * confirmed to exist on the npm registry, which would break `npm install`
+ * outright. Re-wire this once that's resolved (either a confirmed real
+ * package, or a self-hosted ONNX Runtime Web integration that doesn't
+ * depend on it). Spectral Repair's own documented fallback (spec §6.1) is
+ * to work directly on the stereo mix, so the chain is fully functional
+ * without this branch in the meantime.
  */
 export function buildMasterChain(): ChainManager {
-  const musicRebalance = new MusicRebalance();
-  musicRebalance.setBypass(true); // opt-in — see comment above
-
   return new ChainManager('master', [
-    musicRebalance,
     new SpectralRepair(),
     new AzimuthPhase(),
     new LoudnessControl(),
