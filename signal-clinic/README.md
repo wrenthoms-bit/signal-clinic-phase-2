@@ -77,6 +77,8 @@ src/
     ChainManager.ts         owns module order + bypass routing (spec §4)
     modelCache.ts           Cache-API model download/cache (Phase 2)
     resample.ts             sample-rate conversion via OfflineAudioContext (Phase 2)
+    spectrogramRender.ts    coordinate mapping + spectrogram image rendering (manual editor)
+    spectralEdit.ts         Gain/Replace/undo operations on STFT data (manual editor)
   types/mlModule.ts        — MLBackedModule: lazy-load-then-cache base class for Phase 2 modules
   types/vendor/*.d.ts      — hand-written ambient types for demucs-web/onnxruntime-web
                              (delete once `npm install` pulls in their real types)
@@ -84,7 +86,10 @@ src/
   modules/master/…         3 Phase 1 modules (spec §6) + MusicRebalance (Phase 2, bypassed by default)
   chains/                  assembles each ChainManager instance
   hooks/useAudioEngine.ts  file load, render, playback, export
+  hooks/useSpectralEditor.ts manual editor state (STFT ref, history, selection)
   components/              rack UI (mode selector, module cards, transport)
+  components/SpectralEditorCanvas.tsx  interactive spectrogram + drag-select
+  components/SpectralEditorPanel.tsx   manual editor toolbar + modal
 
 tests/
   *.test.ts                 unit tests for src/core/ primitives
@@ -150,7 +155,45 @@ to DSP code the app's whole value proposition depends on.
   fallback path), so the master chain is functionally complete without
   this branch.
 
-## Testing
+## Spectral Repair — manual editor
+
+Replaces Phase 1's automated-only mode with the spec's original vision:
+drag-select a time/frequency region on a real spectrogram, then Gain
+(attenuate) or Replace (heal via time interpolation) it directly.
+Reachable via "Open Spectral Repair — Manual Edit" in Master mode.
+
+**What's genuinely tested:** all the non-visual logic — coordinate
+mapping (frame/frequency ↔ pixel, including the log-frequency axis),
+and the Gain/Replace/undo operations themselves — has real unit tests
+(`tests/spectrogramRender.test.ts`, `tests/spectralEdit.test.ts`), same
+discipline as everything else in this repo. One of those tests caught a
+real bug before it shipped: the first undo implementation assumed a
+bin's mirror always shares its original value (true for genuine audio
+spectra, which is why it wouldn't have surfaced on real material) but
+didn't actually snapshot the mirror bin's own value — wrong whenever a
+wide selection's mirror bins land back inside the same selection. Fixed
+by snapshotting every affected bin individually rather than assuming
+symmetry.
+
+**What's not verified:** the actual canvas rendering, pointer-drag
+selection, and React state wiring (`SpectralEditorCanvas.tsx`,
+`SpectralEditorPanel.tsx`, `useSpectralEditor.ts`) — these need a real
+browser and haven't run in one yet, same caveat as the rest of this
+repo's UI layer.
+
+**Known limitations:**
+- No pan/zoom — the whole file is always squeezed into one fixed-width
+  canvas. Selection still resolves to exact sample-accurate frame/bin
+  indices regardless (only the *picture* is downsampled), but finding a
+  small problem in a long file means looking at a compressed view.
+  Precise zoomed navigation is a natural follow-up, not built here.
+- Replace only interpolates magnitude, not phase — a real simplification
+  worth knowing about, not something quietly assumed away. Works well
+  for the broadband transients this targets; won't perfectly reconstruct
+  sustained tonal content inside a large selection.
+- Editing works on a mono-downmix *view* for display, but applies
+  identically to every channel's own STFT data — there's no per-channel
+  (L-only or R-only) editing yet.
 
 Two layers, both runnable with no network access and no browser:
 

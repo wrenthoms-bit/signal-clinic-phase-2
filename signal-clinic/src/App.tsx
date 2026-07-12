@@ -1,11 +1,19 @@
 import { useAudioEngine } from './hooks/useAudioEngine';
+import { useSpectralEditor } from './hooks/useSpectralEditor';
 import { ModeSelector } from './components/ModeSelector';
 import { FileDropzone } from './components/FileDropzone';
 import { TransportBar } from './components/TransportBar';
 import { ModuleRack } from './components/ModuleRack';
+import { SpectralEditorPanel } from './components/SpectralEditorPanel';
 
 export default function App() {
   const engine = useAudioEngine();
+  const spectralEditor = useSpectralEditor();
+
+  const openManualEditor = () => {
+    const buffer = engine.processedBuffer ?? engine.sourceBuffer;
+    if (buffer) spectralEditor.open(buffer);
+  };
 
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-6 py-10">
@@ -39,11 +47,27 @@ export default function App() {
         onExport={engine.exportWav}
       />
 
+      {engine.chainType === 'master' && (
+        <button
+          onClick={openManualEditor}
+          disabled={!engine.sourceBuffer && !engine.processedBuffer}
+          className="self-start rounded-lg border border-hairline px-3 py-1.5 font-mono text-xs text-ink-muted transition-colors hover:bg-panel-raised disabled:opacity-30"
+        >
+          Open Spectral Repair — Manual Edit
+        </button>
+      )}
+
       <ModuleRack chain={engine.activeChain} activeModuleId={engine.progress?.moduleId ?? null} />
 
       <footer className="pb-6 pt-2 text-center font-mono text-[11px] text-ink-muted">
         Phase 1 — pure DSP. De-bleed, De-reverb (quality mode), and Music Rebalance are ML-dependent and scoped for Phase 2.
       </footer>
+
+      <SpectralEditorPanel
+        editor={spectralEditor}
+        onRenderComplete={engine.setExternalProcessedBuffer}
+        onCancel={spectralEditor.close}
+      />
     </div>
   );
 }

@@ -102,6 +102,11 @@ export function useAudioEngine() {
     URL.revokeObjectURL(url);
   }, [processedBuffer, fileName, chainType]);
 
+  /** Lets an external tool (the manual Spectral Repair editor) hand back an edited buffer as the current result. */
+  const setExternalProcessedBuffer = useCallback((buffer: AudioBuffer) => {
+    setProcessedBuffer(buffer);
+  }, []);
+
   return {
     chainType,
     setChainType,
@@ -117,5 +122,6 @@ export function useAudioEngine() {
     play,
     stop,
     exportWav,
+    setExternalProcessedBuffer,
   };
 }
